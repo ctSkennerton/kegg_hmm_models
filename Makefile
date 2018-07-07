@@ -1,6 +1,10 @@
 .SUFFIXES:
 .PRECIOUS: %.hmm
 
+.DEFAULT_GOAL := help
+
+KO2FASTA := ./ko2fasta.py
+
 methanogenesis = K00200 K00201 K00202 K00203 K00319 K00320 K00399 K00400 K00401 K00402 K00440 K00441 K00442 K00443 K00577 K00578 K00579 K00580 K00581 K00582 K00583 K00584 K00672 K01499 K03388 K03389 K03390 K03421 K03422 K11261 K08264 K08265 K14126 K14127 K14128
 
 methyl_methanogenesis = K14080 K04480 K14081 K16177 K16176 K16179 K16178 K14084 K14083
@@ -83,6 +87,21 @@ alternate_heme_biosynthesis =  K22225 K22226 K22227
 
 modules = methanogenesis nitrogen_fixation aerobic_methanotrophy_type_2_serine_pathway aerobic_methanotrophy_type_1_rump_pathway CBB_cycle denitrification methane_monooxygenase ppp reductive_citrate_cycle three_Hydroxypropionate_bi_cycle hydroxypropionate_hydroxybutylate_cycle dicarboxylate_hydroxybutyrate_cycle reductive_acetyl_CoA_pathway sox_pathway chemotaxis bacteria_ribosome archaea_ribosome Wood_Ljungdahl_pathway reductive_citrate_cycle nitrate_reductases sulfate_reduction methanofuran_biosynthesis typeIV_pili circadian_clock methyl_methanogenesis coenzyme_F430_biosynthesis nitrogenase_plus_F430 cytochrome_c_maturation heme_biosynthesis alternate_heme_biosynthesis
 
+help:
+	$(info create HMMs for KEGG orthologs and KEGG modules)
+	$(info To create a HMM for a single KEGG ortholog run:)
+	$(info make <KO>.kegg_muscle_aligned.hmm (eg. K00399.kegg_muscle_aligned.hmm))
+	$(info To make HMMs from a KEGG module run:)
+	$(info make kegg_modules/<M>/models.hmm.h3p (eg. make kegg_modules/M00001/models.hmm.h3p))
+	$(info This will download all of the kegg orthologs for the module)
+	$(info make HMMs for them and use hmmpress to create a database for searching)
+
+
+external_dependancies := hmmpress hmmbuild muscle cd-hit perl python3
+
+check_dependancies:
+	@for i in $(external_dependancies); do which $$i &>/dev/null; if [ ! $$? -eq 0 ]; then echo "could not find $$i in your path. you probably don't have it installed/loaded correctly"; exit 1;fi  done
+
 default: $(addprefix manual_modules/,$(addsuffix /models.hmm.h3m, $(modules)))
 
 # get list of all modules
@@ -90,8 +109,8 @@ module_listing.tsv:
 	curl 'http://rest.kegg.jp/list/module' > $@
 
 
-%.kegg.faa:
-	ko2fasta.py -o $@ $*
+%.kegg.faa: check_dependancies
+	python3 ${KO2FASTA} -o $@ $*
 	count=$$(grep -c '^>' $@); \
 	if [ $$count -ge 1000 ]; then \
 		cd-hit -i $@ -o $@.repset -c 0.6 -n 4 && mv $@.repset $@;\
